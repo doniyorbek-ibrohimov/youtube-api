@@ -1,5 +1,4 @@
-from fastapi import FastAPI, Depends
-from database import get_db, engine, Base
+from fastapi import FastAPI
 
 from apps.auth.routers import router as auth_router
 from apps.api.routers import router as api_router
@@ -17,7 +16,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-Base.metadata.create_all(bind=engine)
 
 app.include_router(auth_router)
 app.include_router(api_router)

@@ -1,4 +1,3 @@
-from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker,DeclarativeBase, Session
 from typing import Generator
@@ -23,7 +22,7 @@ engine = create_engine(
 
 SessionLocal = sessionmaker(
     bind=engine,
-    autoflush=False,
+    autoflush=False, 
     autocommit=False,
 )
 

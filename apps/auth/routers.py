@@ -7,7 +7,6 @@ from apps.auth.security import create_access_token, get_current_user
 from apps.auth.tasks import send_welcome_email
 
 
-
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
