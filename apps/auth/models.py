@@ -4,7 +4,7 @@ from typing import List
 from sqlalchemy import Column, Integer, String, Table, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database import Base
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 
@@ -31,7 +31,7 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     email: Mapped[str] = mapped_column(String(100), unique=True, index=True)
     hashed_password: Mapped[str] = mapped_column(String)
-    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
 
     # OLD WAY: videos = relationship("Video", back_populates="owner")
     videos: Mapped[List["Video"]] = relationship(back_populates="owner")
