@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  # 1. DATABASE (The Brain)
+  db:
+    image: postgres:15
+    container_name: youtube_db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: youtube_clone
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # 2. MINIO (The Storage Warehouse - Your Free S3)
+  minio:
+    image: minio/minio
+    container_name: youtube_s3
+    ports:
+      - "9000:9000"       # API Port (for Python code)
+      - "9001:9001"       # Console Port (for you to see files in your browser)
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+
+volumes:
+  postgres_data:
+  minio_data:

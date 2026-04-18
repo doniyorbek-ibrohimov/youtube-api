@@ -30,6 +30,9 @@ class CommentResponseModel(BaseModel):
     sentiment: Optional[str] = None
     video_id: int
     owner_id: int
+
+    # we default to an empty list so that frontetnd doesn't get null
+    replies: list['CommentResponseModel'] = []   # Recursive relationship
     created_at: datetime
 
     model_config = ConfigDict(

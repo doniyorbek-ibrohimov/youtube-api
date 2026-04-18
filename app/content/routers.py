@@ -8,9 +8,9 @@ from fastapi import (APIRouter, Depends, HTTPException,
 from sqlalchemy.orm import Session
 
 from database import get_db
-from apps.auth.security import get_current_user
-from apps.auth.schemas import UserResponse 
-from apps.api import crud, schemas 
+from core.security import get_current_user
+from app.auth.schemas import UserResponse 
+from app.content import crud, schemas 
 
 router = APIRouter(prefix="/videos", tags=["videos"])
 

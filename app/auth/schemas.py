@@ -1,6 +1,5 @@
 from pydantic import BaseModel, EmailStr, ConfigDict, Field
 from datetime import datetime
-from typing import List, Optional
 
 
 # --- USER SCHEMAS ---

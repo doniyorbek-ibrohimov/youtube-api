@@ -3,8 +3,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
-from database import Base, get_db
-from main import app
+from app.database import Base, get_db
+from app.main import app
 
 # In-memory test database with StaticPool for proper connection sharing
 SQLALCHEMY_TEST_URL = "sqlite:///:memory:"

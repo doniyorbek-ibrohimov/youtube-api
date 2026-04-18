@@ -1,4 +1,4 @@
-from apps.auth.models import User
+from app.auth.models import User, Channel
 from pwdlib import PasswordHash
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -30,11 +30,26 @@ def create_user(db: Session, user):
     )
     try:
         db.add(db_user)
-        db.commit()
+        db.flush()  # Flush gets the ID of the new user without committing
         db.refresh(db_user)
         return db_user
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=400, detail="User with this email or username already exists")
 
+def create_channel(db: Session, user_id: int, username: str):
+    user = get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
 
+    channel = Channel(
+        name=username,
+        owner_id=user_id
+    )
+    try:
+        db.add(channel)
+        db.refresh(channel)
+        return channel
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Channel with this name already exists")

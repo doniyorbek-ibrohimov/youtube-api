@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from database import get_db
 from sqlalchemy.orm import Session
-from apps.auth.crud import create_user, get_user_by_email, password_hasher
-from apps.auth.schemas import UserCreate, UserResponse, LoginModel
-from apps.auth.security import create_access_token, get_current_user
-from apps.auth.tasks import send_welcome_email
+from app.auth.crud import create_user, create_channel, get_user_by_email, password_hasher
+from app.auth.schemas import UserCreate, UserResponse, LoginModel
+from core.security import create_access_token, get_current_user
+from app.auth.tasks import send_welcome_email
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -14,11 +14,15 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 async def signup(
     user: UserCreate,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)):
+    db: Session = Depends(get_db)
+):
+    
     existing_user = get_user_by_email(db, user.email)
     if existing_user:
         raise HTTPException(status_code=400, detail="User with this email already exists")
     new_user = create_user(db, user)
+    create_channel(db, new_user.id, new_user.username)  # Create a channel for the new user
+    db.commit()
     send_welcome_email(background_tasks, email=user.email)
     return new_user
 

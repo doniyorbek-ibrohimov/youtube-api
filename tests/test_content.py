@@ -1,7 +1,7 @@
 import io
 from fastapi.testclient import TestClient
-from main import app
-from apps.auth.tests import get_auth_token, get_auth_token_for
+from app.main import app
+from tests.test_auth import get_auth_token, get_auth_token_for
 
 client = TestClient(app)
 

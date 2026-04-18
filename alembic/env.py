@@ -2,8 +2,8 @@ from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
-from apps.api import models
-from apps.auth import models
+from app.content import models
+from app.auth import models
 from database import DATABASE_URL
 
 from alembic import context
