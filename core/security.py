@@ -3,11 +3,11 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from app.database import get_db
+from database import get_db
 from app.auth.crud import get_user_by_id
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
-from config import settings
+from core.config import settings
 
 load_dotenv()
 
