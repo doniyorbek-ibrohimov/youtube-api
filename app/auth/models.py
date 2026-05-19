@@ -2,7 +2,7 @@ from typing import List
 
 from sqlalchemy import Column, Integer, String, Table, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from database import Base
+from database.db import Base
 from datetime import datetime, timezone
 
 
@@ -36,7 +36,8 @@ class Channel(Base):
 
     # Everything public now hangs off Channel, not User
     videos: Mapped[List["Video"]] = relationship(back_populates="channel")
-    comments: Mapped[List["Comment"]] = relationship(back_populates="author")
+    comments: Mapped[List["Comment"]] = relationship(back_populates="channel")
+    playlists: Mapped[List["Playlist"]] = relationship(back_populates="channel")
 
     # People who subscribed to this channel
     subscribers: Mapped[List["User"]] = relationship(
@@ -64,6 +65,7 @@ class User(Base):
     # Reactions stay on User — they're private actions, not public ones
     video_reactions: Mapped[List["VideoReaction"]] = relationship(back_populates="user")
     comment_reactions: Mapped[List["CommentReaction"]] = relationship(back_populates="user")
+    watch_history: Mapped[List["WatchHistory"]] = relationship(back_populates="user")
 
     # Channels this user subscribes to
     subscriptions: Mapped[List["Channel"]] = relationship(

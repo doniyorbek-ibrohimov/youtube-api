@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
-from database import Base, get_db
+from database.db import Base, get_db
 from main import app
 
 # In-memory test database with StaticPool for proper connection sharing

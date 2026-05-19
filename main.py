@@ -5,6 +5,7 @@ from app.content.routers import router as content_router
 # from app.interactions.routers import router as interactions_router
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.interactions.models import VideoReaction, CommentReaction
 
 
 app = FastAPI()

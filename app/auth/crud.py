@@ -48,8 +48,15 @@ def create_channel(db: Session, user_id: int, username: str):
     )
     try:
         db.add(channel)
+        db.flush()
         db.refresh(channel)
         return channel
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=400, detail="Channel with this name already exists")
+    
+
+
+def get_channel_by_user_id(db: Session, user_id: int):
+    stmt = select(Channel).where(Channel.owner_id == user_id)
+    return db.execute(stmt).scalar_one_or_none()

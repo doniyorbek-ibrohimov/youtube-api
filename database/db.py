@@ -16,8 +16,6 @@ DATABASE_URL = (f"postgresql+psycopg://{settings.DB_USER}:"
 # Engine (connection with DB)
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    echo=True # for logging SQL queries in the console(disable in production)
 )
 
 SessionLocal = sessionmaker(

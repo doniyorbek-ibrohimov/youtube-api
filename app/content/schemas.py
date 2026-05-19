@@ -12,7 +12,7 @@ class VideoResponseModel(BaseModel):
     id: int
     title: str
     description: Optional[str]
-    owner_id: int
+    channel_id: int
     created_at: datetime
 
     model_config = ConfigDict(
@@ -29,7 +29,7 @@ class CommentResponseModel(BaseModel):
     content: str
     sentiment: Optional[str] = None
     video_id: int
-    owner_id: int
+    channel_id: int
 
     # we default to an empty list so that frontetnd doesn't get null
     replies: list['CommentResponseModel'] = []   # Recursive relationship

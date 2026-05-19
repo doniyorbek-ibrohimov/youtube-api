@@ -5,7 +5,7 @@ import enum
 from sqlalchemy import Column, ForeignKey, String, Table, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database import Base
+from database.db import Base
 
 
 
@@ -43,7 +43,8 @@ class Video(Base):
     # OLD WAY: description = Column(Text, nullable=True)
     description: Mapped[str | None] = mapped_column(Text) 
     
-    file_path: Mapped[str] = mapped_column(String)
+    video_url: Mapped[str] = mapped_column(String)
+    thumbnail_url: Mapped[str | None] = mapped_column(String)
     status: Mapped[VideoStatus] = mapped_column(default=VideoStatus.UPLOADED)
     
     # OLD WAY: owner_id = Column(Integer, ForeignKey("users.id"))
@@ -54,7 +55,8 @@ class Video(Base):
     channel: Mapped["Channel"] = relationship(back_populates="videos")
     comments: Mapped[List["Comment"]] = relationship(back_populates="video")
     reactions: Mapped[List["VideoReaction"]] = relationship(back_populates="video")
-    playslists: Mapped[List["Playlist"]] = relationship(
+    
+    playlists: Mapped[List["Playlist"]] = relationship(
         secondary=playlist_video,
         back_populates="videos" 
     )
