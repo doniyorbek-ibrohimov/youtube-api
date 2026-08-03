@@ -1,37 +1,37 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker,DeclarativeBase, Session
-from typing import Generator
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.orm import DeclarativeBase
+from typing import AsyncGenerator
 from core.config import settings
 
+DATABASE_URL = settings.DATABASE_URL
 
-
-# DB setup
-DATABASE_URL = (f"postgresql+psycopg://{settings.DB_USER}:"
-    f"{settings.DB_PASSWORD}@"
-    f"{settings.DB_HOST}:{settings.DB_PORT}/"
-    f"{settings.DB_NAME}"
-)
-
-
-# Engine (connection with DB)
-engine = create_engine(
+engine = create_async_engine(
     DATABASE_URL,
+    pool_pre_ping=True,
+    echo=True,
 )
 
-SessionLocal = sessionmaker(
+AsyncSessionLocal = async_sessionmaker(
     bind=engine,
-    autoflush=False, 
+    autoflush=False,
     autocommit=False,
+    expire_on_commit=False,
 )
 
 class Base(DeclarativeBase):
     pass
 
-
-def get_db() -> Generator[Session, None, None]:
-    db = SessionLocal()
-    try:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    async with AsyncSessionLocal() as db:
         yield db
-    finally:
-        db.close()
 
+
+# For Celery tasks that need synchronous DB access
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+SYNC_DATABASE_URL = DATABASE_URL.replace("postgresql+asyncpg", "postgresql+psycopg")
+
+sync_engine = create_engine(SYNC_DATABASE_URL, pool_pre_ping=True)
+SyncSessionLocal = sessionmaker(bind=sync_engine, autoflush=False, autocommit=False)

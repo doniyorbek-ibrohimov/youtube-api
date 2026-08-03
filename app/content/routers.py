@@ -133,66 +133,119 @@
 
 # The code above is for storing locally, and just a leaning example
 
-import time
+
 from tasks.video_tasks import generate_thumbnail_task
-from fastapi import APIRouter, Depends, HTTPException, Form, UploadFile, File
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, Form, Query 
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from database.db import get_db
 from core.security import get_current_user
 from app.auth import crud as auth_crud, schemas as auth_schemas
 from app.content import crud, schemas
 from app.logging_config import logger
-from core.storage import storage
-
-
-
+from core.storage import get_storage
 
 router = APIRouter(prefix="/videos", tags=["videos"])
 
 
+# ==========================================
+# PAGINATED READ ENDPOINTS
+# ==========================================
+
+@router.get("", response_model=schemas.CursorPage[schemas.VideoResponseModel])
+@router.get("/", response_model=schemas.CursorPage[schemas.VideoResponseModel])
+async def list_videos(
+    cursor: str | None = Query(None, description="Base64 encoded pagination cursor"),
+    limit: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db)
+):
+    videos, next_cursor, has_more = await crud.get_videos(db, cursor=cursor, limit=limit)
+    return schemas.CursorPage(
+        items=videos,
+        next_cursor=next_cursor,
+        has_more=has_more
+    )
 
 
-@router.post("/videos/upload", response_model=schemas.VideoResponseModel)
-async def upload_video(
+@router.get("/{video_id}/comments", response_model=schemas.CursorPage[schemas.CommentResponseModel])
+async def list_video_comments(
+    video_id: int,
+    cursor: str | None = Query(None, description="Base64 encoded pagination cursor"),
+    limit: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db)
+):
+    comments, next_cursor, has_more = await crud.get_comments_for_video(
+        db, video_id=video_id, cursor=cursor, limit=limit
+    )
+    return schemas.CursorPage(
+        items=comments,
+        next_cursor=next_cursor,
+        has_more=has_more
+    )
+
+
+# ==========================================
+# WRITE / MUTATION ENDPOINTS
+# ==========================================
+
+@router.post("/request-upload")
+async def request_upload(
+    filename: str = Form(...),
+    content_type: str = Form(...),
+    current_user: auth_schemas.UserResponse = Depends(get_current_user),
+):
+    storage = get_storage()
+    if not content_type.startswith("video/"):
+        raise HTTPException(status_code=400, detail="File must be a video")
+
+    result = storage.generate_presigned_upload_url(
+        filename=filename,
+        content_type=content_type,
+        user_id=current_user.id
+    )
+    return result
+
+
+@router.post("/confirm-upload", response_model=schemas.VideoResponseModel)
+async def confirm_upload(
     title: str = Form(...),
     description: str = Form(None),
-    file: UploadFile = File(...),
+    object_name: str = Form(...),
     current_user: auth_schemas.UserResponse = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
-    start_time = time.time()
-    user = auth_crud.get_user_by_id(db, current_user.id)
+    storage = get_storage()
+    user = await auth_crud.get_user_with_channel(db, current_user.id)
     if not user or not user.channel:
         raise HTTPException(status_code=404, detail="Channel not found")
-    logger.info("video_upload_started", extra={"user_id": user.id, "title": title})
+    
+    video_data = schemas.VideoCreateModel(title=title, description=description)
+    video_url = storage.get_video_url(object_name)
+
+    # 1. Primary check (handles 99% of standard sequential duplicates)
+    existing_video = await crud.get_video_by_url(db, video_url)
+    if existing_video:
+        return existing_video
 
     try:
-        # Upload video to MinIO
-        file_path = storage.upload_video_to_s3(file)
-        logger.info("video_uploaded_to_storage", extra={"user_id": user.id, "file_path": file_path})
+        # 2. Attempt the creation
+        video = await crud.create_video(db, video_data, user.channel.id, video_url)
+        await db.commit()
         
-        # Save to database
-        video_data = schemas.VideoCreateModel(title=title, description=description)
-        video = crud.create_video(db, video_data, user.channel.id, file_path)
-        
-        # Queue thumbnail
-        generate_thumbnail_task.delay(video.id, file_path, user.channel.id)
-        
-        duration = time.time() - start_time
-        logger.info("video_uploaded_successfully", extra={
-            "user_id": user.id, 
-            "video_id": video.id,
-            "duration_seconds": round(duration, 2)
-        })
+        # Only trigger Celery if the DB commit succeeds
+        generate_thumbnail_task.delay(video.id, object_name, user.channel.id)
         return video
-    
-    except Exception as e:
-        logger.error("video_upload_failed", extra={
-            "user_id": user.id,
-            "title": title,
-            "error": str(e)
-        }, exc_info=True)
-        raise HTTPException(status_code=500, detail="Video upload failed")
+
+    except IntegrityError:
+        # 3. Race condition safety net (handles simultaneous rapid requests)
+        await db.rollback()
+        
+        # Fetch the record that was just inserted by the competing concurrent request
+        existing_video = await crud.get_video_by_url(db, video_url)
+        if existing_video:
+            return existing_video
+            
+        raise HTTPException(status_code=400, detail="Database integrity conflict")
 
 
 @router.post("/comments/{comment_id}/replies", response_model=schemas.CommentResponseModel)
@@ -200,28 +253,21 @@ async def create_reply_to_comment(
     comment: schemas.CommentCreateModel,
     comment_id: int,
     current_user: auth_schemas.UserResponse = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
-
-    channel = auth_crud.get_channel_by_user_id(db, current_user.id)
+    channel = await auth_crud.get_channel_by_user_id(db, current_user.id)
     if not channel:
         raise HTTPException(status_code=404, detail="Channel not found")
     
-    parent_comment = crud.get_comment(db, comment_id=comment_id)
+    parent_comment = await crud.get_comment(db, comment_id=comment_id)
     if not parent_comment:
         raise HTTPException(status_code=404, detail="Comment not found")
-
-
-    db_comment = crud.create_comment(
+    
+    db_comment = await crud.create_comment(
         db,
         comment,
         channel_id=channel.id,
-        video_id = parent_comment.video_id,
-        parent_id=comment_id
+        video_id=parent_comment.video_id,
+        parent_comment_id=comment_id
     )
-
     return db_comment
-
-
-
-

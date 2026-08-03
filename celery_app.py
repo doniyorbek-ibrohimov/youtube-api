@@ -1,13 +1,10 @@
 from celery import Celery
-import os
-
-# Use your existing Redis
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+from database.redis import redis_broker_url
 
 celery_app = Celery(
     "youtube_tasks",
-    broker=REDIS_URL,
-    backend=REDIS_URL
+    broker=redis_broker_url,
+    backend=redis_broker_url,
 )
 
 celery_app.conf.update(
@@ -16,4 +13,14 @@ celery_app.conf.update(
     result_serializer='json',
     timezone='UTC',
     enable_utc=True,
+    task_routes={
+        'tasks.video_tasks.generate_thumbnail_task': {'queue': 'thumbnails'},
+        'tasks.email_tasks.*': {'queue': 'emails'},
+    }
 )
+
+import tasks.video_tasks
+# import tasks.email_tasks
+from app.auth import models
+from app.content import models
+from app.interactions import models

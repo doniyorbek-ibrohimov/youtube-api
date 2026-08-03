@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import List
 import enum
 
-from sqlalchemy import Column, ForeignKey, String, Table, Text
+from sqlalchemy import Column, ForeignKey, String, Table, Text, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.db import Base
@@ -43,13 +43,16 @@ class Video(Base):
     # OLD WAY: description = Column(Text, nullable=True)
     description: Mapped[str | None] = mapped_column(Text) 
     
-    video_url: Mapped[str] = mapped_column(String)
+    video_url: Mapped[str] = mapped_column(String, unique=True)
     thumbnail_url: Mapped[str | None] = mapped_column(String)
     status: Mapped[VideoStatus] = mapped_column(default=VideoStatus.UPLOADED)
     
     # OLD WAY: owner_id = Column(Integer, ForeignKey("users.id"))
     channel_id: Mapped[int] = mapped_column(ForeignKey("channels.id", ondelete="CASCADE"))
-    created_at: Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc)
+    )
 
     # Note: No 'List[]' here because a video only has ONE owner
     channel: Mapped["Channel"] = relationship(back_populates="videos")
@@ -76,7 +79,10 @@ class Comment(Base):
     # this allows for nested comments (replies to comments)
     parent_comment_id: Mapped[int | None] = mapped_column(ForeignKey("comments.id", ondelete="CASCADE"))
 
-    created_at: Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc)
+    )
 
     channel: Mapped["Channel"] = relationship(back_populates="comments")
     video: Mapped["Video"] = relationship(back_populates="comments")

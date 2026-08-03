@@ -1,33 +1,130 @@
-version: '3.8'
 
 services:
-  # 1. DATABASE (The Brain)
+  # 1. DATABASE
   db:
     image: postgres:15
     container_name: youtube_db
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: youtube_clone
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - youtube_net
 
-  # 2. MINIO (The Storage Warehouse - Your Free S3)
+  # 2. MINIO
   minio:
     image: minio/minio
     container_name: youtube_s3
     ports:
-      - "9000:9000"       # API Port (for Python code)
-      - "9001:9001"       # Console Port (for you to see files in your browser)
+      - "9000:9000"
+      - "9001:9001"
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
+    networks:
+      - youtube_net
+
+  # 3. REDIS - CELERY BROKER
+  redis-broker:
+    image: redis:alpine
+    container_name: youtube_redis_broker
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_broker_data:/data
+    networks:
+      - youtube_net
+
+  # 4. REDIS - JWT BLACKLIST
+  redis-blacklist:
+    image: redis:alpine
+    container_name: youtube_redis_blacklist
+    command: redis-server --maxmemory 256mb --maxmemory-policy noeviction
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_blacklist_data:/data
+    networks:
+      - youtube_net
+
+  # 5. FASTAPI
+  fastapi:
+    build: .
+    container_name: youtube_api
+    ports:
+      - "8000:8000"
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_PUBLIC_ENDPOINT=http://localhost:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET_NAME=youtube-videos
+      - REDIS_BROKER_URL=redis://redis-broker:6379/0
+      - REDIS_BLACKLIST_URL=redis://redis-blacklist:6379/0
+    depends_on:
+      - db
+      - redis-broker
+      - redis-blacklist
+      - minio
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - .:/app
+    networks:
+      - youtube_net
+
+  # 6. CELERY WORKER
+  celery:
+    build: .
+    container_name: youtube_celery
+    environment:
+      - C_FORCE_ROOT=1
+      - SECRET_KEY=${SECRET_KEY}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - MINIO_ENDPOINT=http://minio:9000
+      - MINIO_PUBLIC_ENDPOINT=http://localhost:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET_NAME=youtube-videos
+      - REDIS_BROKER_URL=redis://redis-broker:6379/0
+      - REDIS_BLACKLIST_URL=redis://redis-blacklist:6379/0
+    depends_on:
+      - db
+      - redis-broker
+      - redis-blacklist
+      - minio
+    command: celery -A celery_app worker --loglevel=info -Q thumbnails,emails,celery
+    volumes:
+      - .:/app
+    networks:
+      - youtube_net
 
 volumes:
   postgres_data:
   minio_data:
+  redis_broker_data:
+  redis_blacklist_data:
+
+
+networks:
+  youtube_net:
+    driver: bridge
+
+  

@@ -22,3 +22,23 @@ class LoginModel(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8)    
     
+# --- Channel Schemas ---
+class ChannelResponse(BaseModel):
+    id: int
+    name: str
+    description: str | None
+    avatar_url: str | None
+    owner_id: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ChannelWithStatsResponse(ChannelResponse):
+    subscriber_count: int
+
+class ChannelUpdate(BaseModel):
+    name: str | None = Field(None, max_length=100)
+    description: str | None = Field(None, max_length=500)
+    avatar_url: str | None = None
+
+

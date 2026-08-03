@@ -1,7 +1,16 @@
 from pydantic import BaseModel, ConfigDict
-from typing import Optional
+from typing import Generic, Optional, TypeVar
 from datetime import datetime
 
+
+
+# Create a generic type variable
+T = TypeVar("T")
+
+class CursorPage(BaseModel, Generic[T]):
+    items: list[T]
+    next_cursor: str | None = None
+    has_more: bool = False
 
 class VideoCreateModel(BaseModel):
     title: str 
@@ -12,6 +21,8 @@ class VideoResponseModel(BaseModel):
     id: int
     title: str
     description: Optional[str]
+    video_url: str
+    thumbnail_url: str | None
     channel_id: int
     created_at: datetime
 
