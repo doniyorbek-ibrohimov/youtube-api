@@ -20,16 +20,16 @@ An asynchronous backend API for a video sharing platform built with FastAPI, Pos
 ## Quickstart with Docker
 
 1. Clone the repository:
-   `bash
+   ```bash
    git clone https://github.com/doniyorbek-ibrohimov/youtube-api.git
    cd youtube-api
 
 2. Configure Environment variables:
-   `bash
+   ```bash
    cp .env.example .env
 
 3. Build and Run containers:
-   `bach
+   ```bash
    docker-compose up -d --build
 
 4. Access API documentation:
